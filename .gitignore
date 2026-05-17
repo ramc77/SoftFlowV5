@@ -101,3 +101,6 @@ CLAUDE.md
 *.fdb_latexmk
 *.fls
 build1.log
+
+# Paper drafts — local only, never push
+research/**/paper/
