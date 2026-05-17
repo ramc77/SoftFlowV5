@@ -55,7 +55,7 @@ python3 --version          # 3.10, 3.11, or 3.12
 ### 2.2 Clone and install
 
 ```bash
-git clone https://github.com/<YOUR-USERNAME>/SoftFlow.git
+git clone https://github.com/ramc77/SoftFlow.git
 cd SoftFlow
 
 # Create an isolated Python environment (strongly recommended)
@@ -111,7 +111,7 @@ python3 --version                # 3.10, 3.11, or 3.12
 ### 3.2 Clone and install
 
 ```bash
-git clone https://github.com/<YOUR-USERNAME>/SoftFlow.git
+git clone https://github.com/ramc77/SoftFlow.git
 cd SoftFlow
 
 python3 -m venv .venv
@@ -238,7 +238,7 @@ To remove everything: `rm -rf` the cloned directory.
 ## 8. Reporting an install failure
 
 Please file an issue at
-`https://github.com/<YOUR-USERNAME>/SoftFlow/issues` with:
+`https://github.com/ramc77/SoftFlow/issues` with:
 
 ```bash
 uname -a

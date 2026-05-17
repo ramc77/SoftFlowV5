@@ -59,7 +59,7 @@ Poiseuille channel.
 Quick path (macOS / Linux):
 
 ```bash
-git clone https://github.com/<YOUR-USERNAME>/SoftFlow.git
+git clone https://github.com/ramc77/SoftFlow.git
 cd SoftFlow
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
@@ -192,7 +192,7 @@ If you use SoftFlow in published work, please cite:
   year         = 2026,
   publisher    = {Zenodo},
   version      = {0.3.0},
-  url          = {https://github.com/<YOUR-USERNAME>/SoftFlow},
+  url          = {https://github.com/ramc77/SoftFlow},
 }
 ```
 
