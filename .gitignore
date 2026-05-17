@@ -102,5 +102,9 @@ CLAUDE.md
 *.fls
 build1.log
 
-# Paper drafts — local only, never push
-research/**/paper/
+# Research pipelines + paper drafts — local only, never push to GitHub.
+# Keep on this system; do not publish. Includes:
+#   research/01_microplastic_stenosis/
+#   research/02_ctc_cluster_pulsatile/
+#   research/03_deformability_dld/   (including the paper/ subdirectory)
+research/
