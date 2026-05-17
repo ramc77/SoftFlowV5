@@ -87,3 +87,17 @@ PROMPT.md
 REVIEW.md
 CLAUDE.md
 .claude/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.toc
+*.synctex.gz
+*.lof
+*.lot
+*.fdb_latexmk
+*.fls
+build1.log
