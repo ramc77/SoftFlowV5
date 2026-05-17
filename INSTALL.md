@@ -55,8 +55,8 @@ python3 --version          # 3.10, 3.11, or 3.12
 ### 2.2 Clone and install
 
 ```bash
-git clone https://github.com/ramc77/SoftFlow.git
-cd SoftFlow
+git clone https://github.com/ramc77/SoftFlowV5.git
+cd SoftFlowV5
 
 # Create an isolated Python environment (strongly recommended)
 python3 -m venv .venv
@@ -111,8 +111,8 @@ python3 --version                # 3.10, 3.11, or 3.12
 ### 3.2 Clone and install
 
 ```bash
-git clone https://github.com/ramc77/SoftFlow.git
-cd SoftFlow
+git clone https://github.com/ramc77/SoftFlowV5.git
+cd SoftFlowV5
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -149,7 +149,7 @@ ctest --test-dir build --output-on-failure
 ## 5. Updating
 
 ```bash
-cd SoftFlow
+cd SoftFlowV5
 git pull
 pip install -e ".[dev]"    # rebuilds incrementally
 ```
@@ -238,7 +238,7 @@ To remove everything: `rm -rf` the cloned directory.
 ## 8. Reporting an install failure
 
 Please file an issue at
-`https://github.com/ramc77/SoftFlow/issues` with:
+`https://github.com/ramc77/SoftFlowV5/issues` with:
 
 ```bash
 uname -a

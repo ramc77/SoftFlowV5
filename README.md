@@ -59,8 +59,8 @@ Poiseuille channel.
 Quick path (macOS / Linux):
 
 ```bash
-git clone https://github.com/ramc77/SoftFlow.git
-cd SoftFlow
+git clone https://github.com/ramc77/SoftFlowV5.git
+cd SoftFlowV5
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 python examples/01_poiseuille_lbm/run.py --smoke
@@ -192,7 +192,7 @@ If you use SoftFlow in published work, please cite:
   year         = 2026,
   publisher    = {Zenodo},
   version      = {0.3.0},
-  url          = {https://github.com/ramc77/SoftFlow},
+  url          = {https://github.com/ramc77/SoftFlowV5},
 }
 ```
 
