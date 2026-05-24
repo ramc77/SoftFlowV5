@@ -56,17 +56,22 @@ vtk_*/
 **/checkpoints/
 *.ckpt
 
-# Sweep outputs
-research/**/sweep_out/
-research/**/sweep_results.npz
+# Sweep outputs — push code, papers, figures, and small per-cell summaries;
+# block ALL bulk regenerable data (VTK lattice snapshots + .npz time series).
+# Re-running the sim regenerates them.
+#
+# Per user instruction: "dont push npz and vtk" — bulk simulation output
+# stays local. We keep small JSON manifests, CSV summaries, and figures.
 research/**/sweep_production.log
-research/**/history.npz
-research/**/events.npz
-research/**/fig_*.png
-research/**/fig_*.pdf
-research/**/fig_*.txt
-examples/**/history.npz
-examples/**/events.npz
+research/**/*.log
+
+# Allow run_manifest.json (provenance) and per-cell config under research/.
+!research/**/config/
+!research/**/config/run_manifest.json
+
+# Bulk LBM VTK output is already blocked by the global *.vti/*.vtp/*.pvd
+# rules above; the global *.npz rule blocks history.npz / sweep_results.npz.
+# No unignore rules — keep the repo light.
 
 # =====================================================================
 # Editor / OS junk
@@ -102,9 +107,6 @@ CLAUDE.md
 *.fls
 build1.log
 
-# Research pipelines + paper drafts — local only, never push to GitHub.
-# Keep on this system; do not publish. Includes:
-#   research/01_microplastic_stenosis/
-#   research/02_ctc_cluster_pulsatile/
-#   research/03_deformability_dld/   (including the paper/ subdirectory)
-research/
+# Research projects — code, papers and per-cell summaries are PUBLIC.
+# Only the bulk VTK lattice output is excluded (see "Sweep outputs"
+# section above for the specific patterns).

@@ -1,0 +1,16 @@
+{
+  "severity": 25,
+  "gamma_th": 0.0005,
+  "eta_deposit": 0.5423530915498742,
+  "eta_offtarget": 0.4576469084495584,
+  "eta_remaining": 5.673794767346862e-13,
+  "release_fraction": 0.9999999999999704,
+  "target_absorbed": 9.762355647897447,
+  "off_target_absorbed": 8.237644352091808,
+  "payload_released": 17.999999999999467,
+  "payload_remaining": 2.104316025475453e-122,
+  "t_50_deposit": 9208.0,
+  "walltime_s": 3407.5991497039795,
+  "_format_version": 1,
+  "_n_steps": 200000
+}
