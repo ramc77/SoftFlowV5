@@ -1,6 +1,6 @@
 % =====================================================================
-%  A Goldilocks severity regime for shear-activated drug-carrier
-%  deposition in stenotic microchannels: a 2D LBM-IBM phase diagram
+%  Tuning shear-activated drug carriers to stenosis geometry:
+%  a two-dimensional lattice-Boltzmann immersed-boundary study
 %
 %  Target journals (in order of fit):
 %    1. Journal of Controlled Release        — recommended (IF 10.5)
@@ -51,9 +51,9 @@
 \bibliographystyle{plainnat}
 
 % --------- Author block -----------
-\title{\textbf{A Goldilocks severity regime for shear-activated
-       drug-carrier deposition in stenotic microchannels:
-       a 2D lattice-Boltzmann immersed-boundary phase diagram}}
+\title{\textbf{Matching shear-activated drug carriers to stenosis
+       geometry: a two-dimensional lattice-Boltzmann
+       immersed-boundary study}}
 
 \author[1]{Ram Chand\thanks{Corresponding author:
    \texttt{ram.chand@bnbwu.edu.pk}}}
@@ -76,39 +76,36 @@
 
 % ---------------------------------------------------------------------
 \begin{abstract}
-\noindent Engineered shear-activated nanotherapeutic carriers release
-their payload preferentially in regions of elevated local shear,
-offering a promising route for targeted drug delivery to stenotic
-and thrombotic vessels. The principle has been demonstrated
-experimentally, but the quantitative design rule for matching the
-carrier's shear-activation threshold to the geometry of the target
-stenosis has not been mapped systematically. Here we use a
-custom-built two-dimensional lattice-Boltzmann immersed-boundary
-solver (developed in-house) to compute a $4 \times 4$ phase diagram
-of deposition efficiency $\eta_{\text{deposit}}$ across four
-stenosis severities ($\sigma \in \{0, 25, 50, 75\}\,\%$) and four
-activation thresholds spanning more than one decade
-($\dot\gamma_{\text{th}} \in [5\times 10^{-4},\ 5\times 10^{-3}]$
-lattice units). Each cell is run for 200{,}000 lattice steps
-(${\approx}10$ carrier-circulation cycles) to reach steady-state
-deposition. We identify three robust findings: (i)~a clear
-\emph{sweet-spot ridge} at moderate severity and intermediate
-threshold ($\sigma \approx 25\text{--}50\,\%$,
-$\dot\gamma_{\text{th}} \approx 1\text{--}2\times 10^{-3}$), with
-peak $\eta_{\text{deposit}} = 0.772$; (ii)~a counterintuitive
-\emph{non-monotonic dependence on severity} --- moderate stenoses
-outperform severe ones (${\sim}33\,\%$ deposition loss at
-$\sigma = 75\,\%$ relative to $\sigma = 25\,\%$), revealing a
-\emph{Goldilocks regime} contrary to the intuitive assumption that
-more severe constrictions yield stronger targeting; (iii)~a
-$3.6\times$ enrichment of target vs off-target capture at the
-sweet spot, quantifying the engineering advantage of matched
-threshold--severity design. Zero-stenosis controls give
-$\eta_{\text{deposit}} \equiv 0$ across all thresholds, validating
-the metric. We translate the phase diagram into a closed-form
-design rule
-$\dot\gamma_{\text{th}}^{\star} \approx 4\,u_{\max}/H(\sigma)$
-for carrier-threshold selection.
+\noindent Shear-activated drug carriers release their payload only
+above a critical local shear rate, and so concentrate dose where
+the vessel constricts the flow. The principle has been demonstrated
+both \emph{in vitro} and \emph{in vivo}, but a basic design
+question remains open: given a target stenosis of a particular
+severity, what shear threshold should the carrier be tuned to?
+We address this question with a two-dimensional lattice-Boltzmann
+immersed-boundary simulation. We run a $4 \times 4$ sweep over
+stenosis severity ($\sigma \in \{0,25,50,75\}\,\%$) and carrier
+activation threshold ($\dot\gamma_{\text{th}}$ spanning a decade
+in lattice units), with each cell propagated for $2 \times 10^{5}$
+lattice steps --- about ten carrier-circulation cycles, long enough
+for the deposition trajectory to reach steady state. Two results
+stand out. First, $\eta_{\text{deposit}}$ traces a clean
+inverted-U in the threshold dimension, peaking where the threshold
+matches the throat-induced wall shear; this collapses to a
+closed-form selection rule,
+$\dot\gamma_{\text{th}}^{\star} \approx 4\,u_{\max}/H(\sigma)$.
+Second, and less expected, moderate stenoses outperform severe
+ones: at the peak threshold the $\sigma = 25\text{--}50\,\%$ cells
+deposit roughly $33\,\%$ more drug than $\sigma = 75\,\%$, because
+the higher throat shear at extreme constriction is offset by
+reduced cross-sectional transit volume and competing absorption on
+the obstacle wake. The peak deposition efficiency is
+$\eta_{\text{deposit}} = 0.772$, with a $3.6\times$
+target-to-off-target capture ratio at that operating point. The
+zero-stenosis row gives $\eta_{\text{deposit}} \equiv 0$ as a
+sanity check. The combined results suggest that tunable-threshold
+nanocarriers should be designed for moderate rather than extreme
+stenosis geometries.
 
 \vspace{1em}
 \noindent\textbf{Keywords:}
@@ -116,96 +113,112 @@ shear-activated drug delivery~\textperiodcentered~
 stenotic microchannel~\textperiodcentered~
 lattice Boltzmann method~\textperiodcentered~
 immersed boundary method~\textperiodcentered~
-nanotherapeutic design~\textperiodcentered~
-mechanophenotyping~\textperiodcentered~
-computational drug-carrier design
+nanocarrier design~\textperiodcentered~
+targeted drug delivery~\textperiodcentered~
+computational hemodynamics
 \end{abstract}
 
 % ---------------------------------------------------------------------
 \section{Introduction}
 \label{sec:intro}
 
-Stenoses --- pathological narrowings of blood vessels caused by
-atherosclerotic plaques, thrombi or vasoconstriction --- account
-for a large fraction of acute cardiovascular events including
-stroke, myocardial infarction and pulmonary
-embolism~\citep{wootton1999fluid,malek1999hemodynamic}. Therapeutic
-intervention requires delivering anti-thrombotic, vasodilator or
-clot-dissolving agents specifically to the diseased site while
-minimising systemic exposure, a long-standing challenge of vascular
-pharmacology~\citep{decuzzi2008design,florence2012targeting}.
+Stenotic narrowings of blood vessels --- caused by atherosclerotic
+plaques, thrombi, or vasoconstriction --- underlie a large fraction
+of acute cardiovascular events, including ischaemic stroke,
+myocardial infarction, and pulmonary
+embolism~\citep{wootton1999fluid,malek1999hemodynamic}.
+Pharmacological intervention in these settings requires delivering
+anti-thrombotic, vasodilator, or thrombolytic agents to the
+diseased site while keeping systemic exposure low. This has been
+a long-standing problem in vascular drug delivery, and the
+constraints --- physical and physiological --- on what a circulating
+nanocarrier can actually achieve have been catalogued in some
+detail~\citep{decuzzi2008design,florence2012targeting}.
 
-A particularly elegant approach was introduced by Korin and
-co-workers~\citep{korin2012shear}: \emph{shear-activated
-nanotherapeutic carriers} engineered to release their payload only
-above a critical local shear rate $\dot\gamma_{\text{th}}$. Because
-the pathological constriction itself elevates the local shear by an
-order of magnitude relative to healthy regions, drug release is
-inherently spatially targeted to the lesion. Korin et al.\
-demonstrated the principle \emph{in vitro} (microfluidic stenosis
-chip) and \emph{in vivo} (mouse pulmonary embolism), with two
-orders of magnitude reduction in off-target dose.
+One strategy that exploits the hemodynamics of the disease itself
+was introduced by Korin and
+co-workers~\citep{korin2012shear}: \emph{shear-activated}
+carriers designed to release their payload only above a critical
+local shear rate $\dot\gamma_{\text{th}}$. Because a pathological
+constriction raises the local shear by an order of magnitude over
+the healthy lumen, the release is intrinsically targeted to the
+lesion without any chemical recognition step. Korin et al.\
+demonstrated the principle on a microfluidic chip and in a mouse
+model of pulmonary embolism, reporting a roughly two-order-of-
+magnitude reduction in off-target dose. Subsequent work has
+explored carrier elasticity~\citep{anselmo2017impact} and
+patient-specific aortic
+hemodynamics~\citep{qiao2021mathematical}.
 
-The principle is now established, and a growing body of
-follow-on work has explored variants and clinical
-applications~\citep{anselmo2017impact,qiao2021mathematical}.
-The unresolved question, however, is engineering
-\emph{quantitative}: \emph{what value of
-$\dot\gamma_{\text{th}}$ should the carrier be designed for, given
-a target stenosis of severity $\sigma$?} Too low a threshold and
-the carrier releases everywhere, losing the targeting advantage;
-too high and it never fires. Korin et al.\ implicitly assumed a
-threshold matched to the throat shear, but did not map the
-phase boundary, and subsequent computational work has examined
-single-parameter sensitivities rather than the full
-$(\sigma, \dot\gamma_{\text{th}})$ design plane.
+A basic engineering question is still open. Given a target lesion
+with severity $\sigma$ (the fractional cross-section blocked), what
+threshold $\dot\gamma_{\text{th}}$ should the carrier be tuned to?
+If the threshold is too low the carrier fires everywhere along the
+vasculature and the targeting advantage is lost; if it is too high
+the carrier never fires at all. The Korin et al.\ design
+implicitly used a threshold matched to the throat shear in a
+specific geometry, but the full $(\sigma, \dot\gamma_{\text{th}})$
+design plane has not, to our knowledge, been mapped. The
+computational follow-ups cited above examined sensitivities along
+one parameter at a time rather than the joint plane.
 
-Here we report the first systematic two-dimensional
-lattice-Boltzmann immersed-boundary phase diagram of
-shear-activated drug-carrier deposition. Carriers seeded upstream
-of a circular-obstacle stenosis recirculate through the
-periodic channel for ten carrier-residence times, releasing
-payload according to the standard sigmoidal threshold kinetic.
-Walls absorb the released drug at biologically motivated
-asymmetric rates (faster at the diseased throat, slower at the
-healthy upstream/downstream walls). The phase diagram of the
-deposition efficiency $\eta_{\text{deposit}}$ over the
-$(\sigma, \dot\gamma_{\text{th}})$ plane reveals a clear
-sweet-spot ridge \emph{and} an unexpected
-\emph{Goldilocks finding}: moderate stenoses
-($\sigma = 25\text{--}50\,\%$) systematically outperform severe
-ones ($\sigma = 75\,\%$). The closed-form design rule that emerges,
-$\dot\gamma_{\text{th}}^{\star} \approx 4\,u_{\max}/H(\sigma)$,
-provides an immediately actionable engineering guideline for
-carrier-threshold selection.
+\paragraph{Objectives.} The present study sets out to (i)~map the
+joint dependence of the steady-state deposition efficiency
+$\eta_{\text{deposit}}$ on stenosis severity and carrier
+activation threshold using a controlled two-dimensional
+simulation; (ii)~check whether the deposition is monotonic in
+severity --- the assumption implicit in the experimental
+literature; and (iii)~translate the resulting design plane into a
+quantitative rule that can be used at the bench when selecting a
+carrier formulation for a given lesion geometry. To do this we use
+an in-house lattice-Boltzmann immersed-boundary solver. Carriers
+are seeded upstream of a circular-obstacle stenosis and
+recirculated through a periodic channel for ten
+carrier-residence times. Each carrier releases payload according
+to a sigmoidal shear-threshold kinetic, and the released drug
+field is advected, diffused, and absorbed by vessel walls at
+asymmetric rates --- faster at the diseased throat, slower at the
+healthy walls upstream and downstream.
 
-The remainder of this paper is organised as follows.
-Section~\ref{sec:methods} documents the numerical scheme,
-geometry, release kinetics and wall-absorber model in sufficient
-detail for independent reproduction.
-Section~\ref{sec:results} reports the negative control, the phase
-diagram, the sweet-spot ridge, the Goldilocks finding and the
-single-cell deposition cascade.
-Section~\ref{sec:discussion} interprets the mechanism, compares
-with the experimental work of Korin et al., and discusses
-limitations. Section~\ref{sec:conclusion} states the design rule
-and outlines extensions.
+The two main findings are reported in
+Section~\ref{sec:results}: an inverted-U in deposition versus
+activation threshold at every severity tested, and a
+non-monotonic dependence on severity in which moderate stenoses
+($\sigma = 25\text{--}50\,\%$) deposit more drug than severe ones
+($\sigma = 75\,\%$). The first collapses to a closed-form rule
+$\dot\gamma_{\text{th}}^{\star} \approx 4\,u_{\max}/H(\sigma)$ for
+matching the carrier threshold to the throat geometry. The second
+suggests that the natural clinical sweet spot for shear-activated
+drug delivery lies away from the most severe occlusions, which
+has implications for which patient subgroups are best matched to
+this delivery modality.
+
+Section~\ref{sec:methods} documents the numerical scheme, the
+geometry, the release kinetic, and the wall-absorber model in
+enough detail to support independent reimplementation.
+Section~\ref{sec:results} reports the zero-stenosis control, the
+phase diagram, the sweet-spot ridge, the severity reversal, and
+the single-cell deposition trajectory.
+Section~\ref{sec:discussion} discusses the mechanism, compares
+with the Korin et al.\ data, and lists the limitations of the
+2D, single-carrier-population, first-order-absorber model.
+Section~\ref{sec:conclusion} states the design rule and
+near-term extensions.
 
 % ---------------------------------------------------------------------
 \section{Methods}
 \label{sec:methods}
 
-This section documents the full numerical formulation of the
-in-house code used here in sufficient detail that any independent
-implementation reproduces the results without reference to a
-particular software release. Section~\ref{sec:methods-lbm} gives
-the fluid solver, Section~\ref{sec:methods-ibm} the coupling to
-the carrier capsules, Section~\ref{sec:methods-geometry} the
-stenosis geometry, Section~\ref{sec:methods-release} the
-shear-activated release kinetic, and
-Section~\ref{sec:methods-walls} the wall-absorber model. All
-quantities are reported in lattice units (LU); conversion to
-physical units is discussed in Section~\ref{sec:disc-units}.
+This section documents the numerical formulation used here so
+that an independent implementation can reproduce the results
+without depending on a particular software release.
+Section~\ref{sec:methods-lbm} covers the fluid solver,
+Section~\ref{sec:methods-ibm} the carrier-capsule coupling,
+Section~\ref{sec:methods-geometry} the stenosis geometry,
+Section~\ref{sec:methods-release} the shear-activated release
+kinetic, and Section~\ref{sec:methods-walls} the wall-absorber
+model. All quantities are reported in lattice units (LU);
+conversion to physical units is in Section~\ref{sec:disc-units}.
 
 \subsection{Lattice Boltzmann fluid solver}
 \label{sec:methods-lbm}
@@ -452,17 +465,18 @@ deposit $t_{50}^{\text{dep}}$.
 \subsection{Implementation}
 \label{sec:methods-implementation}
 
-All simulations were performed with an in-house C++20 LBM-IBM code
-developed by the author. The code implements
+All simulations were carried out with an in-house C++20
+LBM--IBM code that implements
 Eqs.~\eqref{eq:d2q9}--\eqref{eq:offtarget} directly. The
-collide--stream loop is OpenMP-parallel with a structure-of-arrays
-distribution layout; absorbers and the release kinetic are
-applied as per-step callbacks after streaming. Each cell carries a
-self-contained provenance record (git commit, compiler identity,
-resolved CXX flags, OpenMP thread count, fully resolved
-parameters, RNG seed) sufficient for bit-for-bit reproduction.
-Total wall-time for the 16-cell sweep was approximately 16 hours
-on a 16-core Apple M-series laptop ($\approx 60$~min per cell).
+collide--stream loop is parallelised with OpenMP on a
+structure-of-arrays layout of the distribution functions; the
+wall absorbers and the release kinetic are applied as per-step
+callbacks after streaming. Each cell writes a
+\verb|run_manifest.json| with the git commit, compiler identity,
+resolved compile flags, OpenMP thread count, all resolved
+parameters, and the RNG seed --- enough information to reproduce
+the run bit-for-bit. The full 16-cell sweep took about 16~h on a
+16-core Apple M-series laptop (roughly an hour per cell).
 
 % ---------------------------------------------------------------------
 \section{Results}
@@ -495,22 +509,20 @@ carriers and drug field through the channel.}
 \label{fig:schematic}
 \end{figure}
 
-Figure~\ref{fig:drug-field} shows three representative
-ParaView-rendered snapshots of the simulation interior with the
-drug concentration field overlaid on top of the carrier
-positions, captured at different phases of the run. The three
-panels illustrate, respectively: (a)~a single carrier transiting
-the throat and firing a concentrated, spatially-localised drug
-pulse (red); (b)~the same drug load advected past the stenosis
-by the post-throat wake, redistributed as a downstream cloud;
-and (c)~a peak-release moment when several carriers transit the
-throat simultaneously, producing a large concentrated drug zone
-right at the constriction. The visualisation makes the targeting
-mechanism directly visible: drug is generated where carrier and
-high shear coincide (in the throat), but is then carried
-downstream by the same flow that triggered its release ---
-exactly the advection--release competition that the
-target-vs-off-target absorber balance is designed to quantify.
+Figure~\ref{fig:drug-field} shows three ParaView-rendered
+snapshots from the sweet-spot cell, with the drug concentration
+field overlaid on the carrier positions. Panel~(a) captures a
+single carrier transiting the throat and firing a localised drug
+pulse; panel~(b) shows the same drug load a short time later,
+swept past the stenosis by the post-throat wake and now sitting
+as a downstream cloud; panel~(c) is a peak-release moment with
+several carriers transiting the throat simultaneously and
+producing a concentrated drug zone right at the constriction.
+The visualisation makes the basic competition explicit: drug is
+generated where carrier and high shear coincide, but the same
+flow that triggers release also carries the released drug
+downstream. The target-vs-off-target absorber balance is meant
+to quantify exactly this competition.
 
 \begin{figure}[t]
 \centering
@@ -570,18 +582,20 @@ simulations, all returning exactly zero deposition signal.
 \subsection{Phase diagram of deposition efficiency}
 \label{sec:results-phase}
 
-Figure~\ref{fig:eta-deposit} reports the steady-state
-$\eta_{\text{deposit}}$ across all 16 cells. The structure is
-striking: nine of the twelve stenosis cells
-($\sigma \ge 25\,\%$) reach $\eta_{\text{deposit}} > 0.5$
-(``strong delivery''), with peak
+Figure~\ref{fig:eta-deposit} shows the steady-state
+$\eta_{\text{deposit}}$ across all 16 cells. Nine of the twelve
+stenosis cells ($\sigma \ge 25\,\%$) reach
+$\eta_{\text{deposit}} > 0.5$, with the maximum
 $\eta_{\text{deposit}} = 0.772$ at
-$(\sigma, \dot\gamma_{\text{th}}) = (25\,\%,\ 2\times 10^{-3})$.
+$(\sigma, \dot\gamma_{\text{th}}) = (25\,\%,\ 2\times 10^{-3})$~LU.
+The two empty corners are the zero-stenosis row (no target zone
+exists) and the highest-threshold column (release is largely
+suppressed; see Section~\ref{sec:results-trajectory}).
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.85\linewidth]{fig_eta_deposit.png}
-\caption{\textbf{Headline phase diagram.} Deposition efficiency
+\caption{Deposition efficiency
 $\eta_{\text{deposit}}$ over the
 $(\sigma,\, \dot\gamma_{\text{th}})$ plane. Each cell is one
 independent 200{,}000-step LBM-IBM simulation. The bottom row
@@ -614,18 +628,18 @@ $\sigma = 0\,\%$ saturates at $\eta_{\text{deposit}} \equiv 0$.
 \includegraphics[width=0.85\linewidth]{fig_sweet_spot.png}
 \caption{Deposition efficiency versus shear-activation threshold,
 one curve per severity. Each curve is an inverted U with a
-clear maximum near
+maximum near
 $\dot\gamma_{\text{th}} \approx 1\text{--}2\times 10^{-3}$~LU,
-corresponding to a release threshold matched to the
-stenosis-induced throat shear rate
-$\dot\gamma_{\text{throat}}(\sigma) \approx 4 u_{\max} / H(\sigma)$.
-The control $\sigma = 0\,\%$ (blue) sits flat at the bottom
-because no target zone exists. The
-\emph{moderate-severity advantage} is visible: the
-$\sigma = 75\,\%$ curve (red) lies systematically below
-$\sigma = 25\,\%$ (orange) and $\sigma = 50\,\%$ (green)
-despite the higher local throat shear that severe constrictions
-produce.}
+where the release threshold matches the stenosis-induced throat
+shear rate
+$\dot\gamma_{\text{throat}}(\sigma) \approx 4 u_{\max}/H(\sigma)$.
+The control $\sigma = 0\,\%$ (blue) sits at zero throughout,
+because no target zone exists in the pristine channel. The
+$\sigma = 75\,\%$ curve (red) lies below the $\sigma = 25\,\%$
+(orange) and $\sigma = 50\,\%$ (green) curves at every
+threshold, despite the higher throat shear produced by the
+tighter constriction --- the severity reversal discussed in
+the text.}
 \label{fig:sweet-spot}
 \end{figure}
 
@@ -645,11 +659,11 @@ threshold to the throat-induced wall shear, no more, no less.
 The rule has no free parameters once $u_{\max}$ and $H(\sigma)$
 are specified.
 
-\subsection{Goldilocks finding: moderate stenoses outperform severe ones}
+\subsection{Moderate stenoses outperform severe ones}
 \label{sec:results-goldilocks}
 
-The moderate-severity advantage is striking and not what one
-would naively predict. At every shear threshold studied, the
+The severity ordering in Figure~\ref{fig:sweet-spot} is not what
+one would naively expect. At every threshold studied, the
 $\sigma = 75\,\%$ row lies below the $\sigma = 25\text{--}50\,\%$
 rows:
 \begin{equation}
@@ -659,34 +673,32 @@ rows:
 \quad
 \text{for all four}\ \dot\gamma_{\text{th}}.
 \end{equation}
-At the peak (Figure~\ref{fig:sweet-spot}),
-$\sigma = 25\,\%$ delivers $\eta_{\text{deposit}} = 0.77$ versus
-$0.52$ at $\sigma = 75\,\%$, a $33\,\%$ loss of efficacy moving
-from moderate to severe stenosis. The result is robust across
-all four thresholds and arises from the interplay of two
-competing effects: increasing severity raises the throat shear
-(beneficial for activation) but also restricts the
-cross-sectional area through which carriers must transit and
-extends the obstacle footprint that competes with the target
-zone for absorbing wall area (both unfavourable). The Goldilocks
-optimum lies near $\sigma = 25\text{--}50\,\%$.
+At the peak, $\sigma = 25\,\%$ gives $\eta_{\text{deposit}} = 0.77$
+against $0.52$ at $\sigma = 75\,\%$ --- a roughly one-third drop in
+efficacy on going from moderate to severe stenosis. The ordering
+holds at all four thresholds. The mechanism is a trade-off
+between two effects of increasing $\sigma$: a higher throat shear
+(which helps activation) versus a smaller cross-sectional area
+through which carriers must transit and a longer obstacle wake
+that overlaps with the target absorber (both unfavourable). In
+this geometry the unfavourable effects dominate beyond
+$\sigma \approx 50\,\%$, putting the optimum near
+$\sigma = 25\text{--}50\,\%$.
 
-\subsection{Single-cell anatomy of the deposition cascade}
+\subsection{Time-resolved single-cell behaviour}
 \label{sec:results-trajectory}
 
-Figure~\ref{fig:trajectory} unpacks the time-resolved dynamics of
-the sweet-spot cell. The top panel shows the cumulative mass
-trajectories: total released mass (black) climbs sigmoidally and
-saturates at $M_{\text{loaded}} = 18$ by
-$t \approx 50{,}000$ (all 18 carriers fully discharged within
-${\approx} 2.5$ circulation cycles); target absorption (green)
-and off-target absorption (cyan) climb in parallel during the
-release phase and stabilise at
-$M_{\text{abs,target}} = 12.85$ and
-$M_{\text{abs,off}} = 5.15$, respectively. The drug remaining in
-the fluid (purple dashed) shows a transient peak near
-$t = 5{,}000$ during the initial release burst and decays to
-near zero by $t = 50{,}000$.
+Figure~\ref{fig:trajectory} shows the time-resolved deposition
+trajectory for the sweet-spot cell. The top panel plots the
+cumulative mass curves. Total released mass (black) climbs
+sigmoidally and saturates at $M_{\text{loaded}} = 18$ by
+$t \approx 50{,}000$, i.e.~all 18 carriers fully discharged within
+about 2.5 circulation cycles. Target absorption (green) and
+off-target absorption (cyan) climb in parallel during the
+release phase and plateau at $M_{\text{abs,target}} = 12.85$ and
+$M_{\text{abs,off}} = 5.15$. The drug remaining in the fluid
+(purple dashed) peaks near $t = 5{,}000$ during the initial
+release burst and decays to near zero by $t = 50{,}000$.
 
 \begin{figure}[t]
 \centering
@@ -708,13 +720,12 @@ captures the asymptotic deposition value with comfortable margin.}
 
 The bottom panel shows the instantaneous efficiencies
 $\eta_{\text{deposit}}(t)$ and $\eta_{\text{off}}(t)$. Both reach
-steady-state plateaus by $t \approx 50{,}000$ --- well within
-the $200{,}000$-step window, with comfortable margin. The
-plateaus equal $0.714$ and $0.286$ respectively, summing to
-$1.0$ as required (all released drug has been absorbed by
-$t \approx 100{,}000$). This single-cell anatomy verifies that
-the 200{,}000-step protocol is conservative: the headline
-$\eta_{\text{deposit}}$ value is the asymptotic steady state,
+steady plateaus by $t \approx 50{,}000$, well within the
+$200{,}000$-step production window. The plateau values are
+$0.714$ and $0.286$ and sum to unity, as they must once all
+released drug has been absorbed (by $t \approx 100{,}000$). This
+confirms that the 200{,}000-step protocol is conservative: the
+reported $\eta_{\text{deposit}}$ is the asymptotic steady state,
 not a transient snapshot.
 
 \subsection{Off-target loss and selectivity}
@@ -751,73 +762,72 @@ healthy wall) by mass conservation.}
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{Mechanism of the Goldilocks regime}
+\subsection{Why moderate stenoses outperform severe ones}
 \label{sec:disc-mechanism}
 
 The non-monotonic dependence of $\eta_{\text{deposit}}$ on
-stenosis severity (Section~\ref{sec:results-goldilocks}) is the
-most counterintuitive of our findings. The naive expectation,
-implicit in much of the experimental
-literature~\citep{korin2012shear}, is that more severe stenoses
-should yield stronger targeting because they produce higher
-throat shear and thus stronger release activation. Our
-$\sigma = 75\,\%$ row demonstrates that this monotonic
-intuition is wrong: deposition efficiency \emph{drops}
-moving from moderate to severe constriction.
+severity (Section~\ref{sec:results-goldilocks}) is the most
+unexpected result. The usual expectation, implicit in much of the
+experimental literature~\citep{korin2012shear}, is that tighter
+constrictions yield stronger targeting because they produce a
+higher throat shear and therefore stronger release activation.
+The $\sigma = 75\,\%$ row shows that this monotonic picture
+does not hold once the geometric consequences of the
+constriction are taken into account: deposition efficiency
+\emph{falls} on going from moderate to severe stenosis.
 
-Three mechanisms compete as $\sigma$ increases:
+Three effects compete as $\sigma$ increases:
 
 \begin{enumerate}
 \item Throat shear $\dot\gamma_{\text{throat}}(\sigma) \approx
 4 u_{\max}/H(\sigma)$ rises monotonically with $\sigma$,
-\emph{enhancing} the carrier activation rate.
+\emph{raising} the carrier activation rate.
 \item Throat width $H(\sigma) = N_y(1 - \sigma)$ shrinks
 monotonically, \emph{restricting} the cross-section through
 which carriers must transit. At $\sigma = 75\,\%$ the throat
 admits only a quarter of the bulk volumetric flow rate per
 unit area.
-\item Obstacle wall area grows monotonically, \emph{extending}
-the upstream and downstream wall surface where the target
-zone competes for absorption. The off-target wall bands begin
-to overlap with the obstacle's wake region, reducing the
-target's spatial selectivity.
+\item The obstacle's wall footprint grows monotonically, so the
+off-target wall bands begin to overlap with the obstacle wake
+and the target zone loses spatial selectivity relative to the
+adjacent healthy wall.
 \end{enumerate}
 
-Effects 2 and 3 dominate beyond $\sigma \approx 50\,\%$ in our
-geometry, producing the Goldilocks regime. The optimum
-$\sigma^{\star} \approx 25\text{--}50\,\%$ corresponds to the
-crossover where the increased throat shear from a tighter
-constriction no longer compensates for the reduced
-transit volume and increased wall competition.
+In this geometry, effects 2 and 3 dominate beyond
+$\sigma \approx 50\,\%$, placing the crossover near
+$\sigma^{\star} \approx 25\text{--}50\,\%$. The crossover is the
+point at which the gain from raising throat shear no longer
+compensates for the cost of restricted transit volume and
+weakened spatial selectivity.
 
 \subsection{Comparison with experimental observations}
 \label{sec:disc-comparison}
 
-Korin et al.\ reported a peak ${\sim}10\,\%$ deposition
-efficiency in a $\sigma = 90\,\%$ mouse pulmonary embolism
-model~\citep{korin2012shear}, well below our peak
-$\eta_{\text{deposit}} = 0.77$ at $\sigma = 25\,\%$. The
-ordering is consistent with our Goldilocks prediction: their
-extreme-severity case ($\sigma = 90\,\%$) lies further into the
-moderate-stenosis-advantage regime, and one would expect
-substantially higher efficiency in a $\sigma = 25\text{--}50\,\%$
-model. We are not aware of any experimental sweep covering this
-parameter range; the design-rule prediction
-(Eq.~\ref{eq:design-rule}) suggests such an experiment would
-quantitatively validate the inverted-U structure shown in
-Figure~\ref{fig:sweet-spot}.
+Korin et al.\ reported a peak deposition of order $10\,\%$ in a
+$\sigma \approx 90\,\%$ mouse pulmonary embolism
+model~\citep{korin2012shear}, well below our peak of
+$\eta_{\text{deposit}} = 0.77$ at $\sigma = 25\,\%$. The ordering
+is at least consistent with the present results: their case sits
+well past the crossover identified here, so the lower efficiency
+is the direction expected from Figure~\ref{fig:sweet-spot}. We
+are not aware of an experimental sweep covering the
+$\sigma = 25\text{--}50\,\%$ range with matched-threshold
+carriers; such an experiment would be the most direct test of the
+inverted-U structure.
 
-The 3.6$\times$ target:off-target enrichment we predict at the
-sweet spot exceeds Korin et al.'s reported ${\sim}2\times$
-selectivity by a factor of nearly two, which we attribute to the
-matched-threshold condition: their experimental carriers used a
-fixed activation threshold, while our sweep explicitly tunes
-$\dot\gamma_{\text{th}}$ to match the throat shear. The
-implication for carrier design is direct: tunable-threshold
-nanotherapeutics should be engineered for the
-$25\text{--}50\,\%$ severity range rather than for extreme
-stenoses, and the threshold should be matched to
-$4 u_{\max}/H(\sigma)$ rather than empirically chosen.
+The $3.6\times$ target-to-off-target ratio reported here is
+roughly twice the selectivity reported by Korin et al.
+($\sim 2\times$). We attribute the difference to the matched
+threshold: their experimental carriers used a single fixed
+activation threshold, whereas the sweep here explicitly tunes
+$\dot\gamma_{\text{th}}$ to the throat shear of each geometry.
+The practical implication is that tunable-threshold carriers
+should be designed for the $25\text{--}50\,\%$ severity range
+rather than for extreme occlusions, with the threshold set by
+the wall-shear estimate $4 u_{\max}/H(\sigma)$ rather than chosen
+empirically. This narrows --- in a clinically useful way --- the
+patient subgroup most likely to benefit from this delivery
+modality.
 
 \subsection{Practical conversion to physical units}
 \label{sec:disc-units}
@@ -889,22 +899,20 @@ would tighten any reviewer-level error-bar requirement.
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have computed the first systematic two-dimensional
-lattice-Boltzmann immersed-boundary phase diagram of
-shear-activated drug-carrier deposition in stenotic
-microchannels. The 4$\times$4 sweep over stenosis severity
-$\sigma$ and carrier activation threshold
-$\dot\gamma_{\text{th}}$, run for 200{,}000 lattice steps
-(${\approx}10$ carrier-circulation cycles) per cell, reveals
-three robust findings: a clean inverted-U sweet-spot in the
-threshold dimension; a counterintuitive Goldilocks regime where
-moderate stenoses outperform severe ones; and a $3.6\times$
-target:off-target enrichment at the optimum. Zero-stenosis
-controls give $\eta_{\text{deposit}} \equiv 0$ across all
-thresholds, validating the metric.
+We have presented a two-dimensional lattice-Boltzmann
+immersed-boundary study of shear-activated drug-carrier
+deposition in stenotic microchannels. A 4$\times$4 sweep over
+stenosis severity and carrier activation threshold, with each
+cell propagated for 200{,}000 lattice steps (about ten
+carrier-circulation cycles), gives an inverted-U in the
+threshold dimension and a non-monotonic dependence on severity
+in which moderate stenoses outperform severe ones. The peak
+deposition efficiency is $\eta_{\text{deposit}} = 0.77$ and the
+corresponding target-to-off-target capture ratio is $3.6\times$;
+the zero-stenosis controls give
+$\eta_{\text{deposit}} \equiv 0$, as the metric requires.
 
-The phase diagram translates into a closed-form engineering
-design rule:
+The deposition plane collapses to a simple design rule:
 \begin{equation}
 \dot\gamma_{\text{th}}^{\star}(\sigma) \approx
    \frac{4\,u_{\max}}{H(\sigma)},
@@ -912,21 +920,21 @@ design rule:
 \sigma_{\text{optimum}} \approx 25\text{--}50\,\%.
 \label{eq:design-rule-final}
 \end{equation}
-For a given target stenosis geometry, this prescribes both the
-carrier activation threshold (match the throat-induced wall
-shear) and the most efficacious severity range
-(moderate, not extreme). The result directly informs the
-design of next-generation shear-activated nanotherapeutics and
-the selection of clinical targets for shear-activated
-intra-vascular delivery.
+For a target lesion this fixes both the carrier activation
+threshold (match the throat-induced wall shear) and the severity
+range over which the modality is expected to work best. The
+result is a starting point for matching tunable-threshold
+nanocarriers to patient lesion geometry and for
+selecting clinical targets for shear-activated intravascular
+delivery.
 
-Immediate extensions include three-dimensional simulations to
-quantify the dimensional correction; pulsatile-flow boundary
-conditions to capture cardiac-cycle effects on the deposition
-trajectory; multi-species suspensions to study carrier--red
-blood cell competition; and explicit receptor-density profiles
-for absolute-uptake calibration against
-\emph{in vivo} pharmacokinetic data.
+Several extensions are natural next steps: three-dimensional
+simulations to quantify the dimensional correction; pulsatile
+inlet conditions to capture cardiac-cycle effects on the
+deposition trajectory; multi-species suspensions to study
+carrier--red-blood-cell competition; and explicit
+receptor-density profiles for absolute-uptake calibration
+against \emph{in vivo} pharmacokinetic data.
 
 % ---------------------------------------------------------------------
 \section*{Acknowledgements}
