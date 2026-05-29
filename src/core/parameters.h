@@ -78,6 +78,12 @@ struct FluidParams {
 
     // Extended boundary conditions
     bool periodic_y = false;  // periodic also in y-direction
+    // Recirculate capsules in x independently of the fluid BC: a capsule whose
+    // centroid leaves [0, nx) is translated by +-nx so it re-enters at the
+    // opposite end. Lets a finite suspension recirculate (sustained
+    // concentration) while the fluid uses, e.g., inlet/outlet driving. Forces
+    // and IBM stay non-periodic to match the (non-periodic) fluid.
+    bool capsule_periodic_x = false;
     Real top_wall_velocity = 0.0;    // moving top wall (Couette)
     Real bottom_wall_velocity = 0.0; // moving bottom wall
     bool use_interpolated_bb = false; // Bouzidi interpolated bounce-back
@@ -139,6 +145,21 @@ struct RepulsionParams {
     Real sigma = 1.0;        // repulsion range parameter
     Real r_cut = 3.5;        // cutoff distance (lattice units)
     int power = 4;           // repulsion power law exponent (4 = softer, longer range)
+
+    // --- DEM-style dissipative/frictional contact (Path A) ---------------
+    // Both default to 0 => pure conservative repulsion (legacy behaviour).
+    // Normal viscoelastic damping coefficient gamma_n: adds a dashpot force
+    // -gamma_n * v_n along the contact normal (cohesionless: the total normal
+    // force is clamped >= 0, so there is no spurious attraction). Dissipates
+    // energy on approach => coefficient of restitution < 1.
+    //   Refs: Cundall & Strack, Geotechnique 29, 47 (1979);
+    //         Brilliantov et al., Phys. Rev. E 53, 5382 (1996).
+    Real damping_normal = 0.0;
+    // Coulomb friction coefficient mu: adds a tangential force opposing the
+    // tangential relative velocity, with magnitude mu * |F_normal| (kinetic
+    // Coulomb friction, regularised by the sliding direction).
+    //   Ref: Cundall & Strack (1979); Coulomb friction.
+    Real friction_coeff = 0.0;
 };
 
 struct LubricationParams {

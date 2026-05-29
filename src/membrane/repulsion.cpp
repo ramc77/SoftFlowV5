@@ -3,33 +3,52 @@
 
 namespace softflow {
 
+Vec2d RepulsionForce::pairForce(const Vec2d& pos_a, const Vec2d& vel_a,
+                                const Vec2d& pos_b, const Vec2d& vel_b) const {
+    Vec2d diff = pos_a - pos_b;     // points from b to a
+    diff.x = minImageDx(diff.x);    // periodic image in x
+    Real r = diff.norm();
+    if (r < 1e-15 || r >= params_.r_cut) return Vec2d{0.0, 0.0};
+
+    Vec2d n = diff / r;             // unit normal pointing from b toward a
+    // Conservative power-law repulsion (the contact "spring").
+    Real F_rep = params_.epsilon * std::pow(params_.sigma / r, params_.power);
+    Real F_n = F_rep;
+    Vec2d F_t{0.0, 0.0};
+
+    if (params_.damping_normal > 0.0 || params_.friction_coeff > 0.0) {
+        Vec2d v_rel = vel_a - vel_b;
+        // Normal relative velocity (>0 separating, <0 approaching).
+        Real v_n = v_rel.x * n.x + v_rel.y * n.y;
+        // Normal viscoelastic damping; cohesionless => clamp total normal >= 0
+        // (a dashpot would otherwise pull the pair together while separating).
+        F_n = F_rep - params_.damping_normal * v_n;
+        if (F_n < 0.0) F_n = 0.0;
+        // Tangential Coulomb friction opposing the sliding direction, capped
+        // at mu * |F_n| by construction.
+        if (params_.friction_coeff > 0.0) {
+            Vec2d v_t = v_rel - n * v_n;   // tangential relative velocity
+            Real v_t_mag = v_t.norm();
+            if (v_t_mag > 1e-12) {
+                F_t = (v_t / v_t_mag) * (-params_.friction_coeff * F_n);
+            }
+        }
+    }
+    return n * F_n + F_t;
+}
+
 void RepulsionForce::computeInterCapsule(Capsule& ci, Capsule& cj) {
     auto& pos_i = ci.positions();
     auto& pos_j = cj.positions();
+    auto& vel_i = ci.velocities();
+    auto& vel_j = cj.velocities();
     auto& f_i = ci.forces();
     auto& f_j = cj.forces();
 
-    Real r_cut = params_.r_cut;
-    Real epsilon = params_.epsilon;
-    Real sigma = params_.sigma;
-    int power = params_.power;
-
     for (int a = 0; a < ci.numNodes(); ++a) {
         for (int b = 0; b < cj.numNodes(); ++b) {
-            Vec2d diff = pos_i[a] - pos_j[b]; // points from j to i
-            diff.x = minImageDx(diff.x);       // periodic image in x
-            Real r = diff.norm();
-
-            if (r < 1e-15 || r >= r_cut) continue;
-
-            // Morse-like repulsion: F = epsilon * (sigma/r)^power
-            Real ratio = sigma / r;
-            Real ratio_pow = std::pow(ratio, power);
-            Real F_mag = epsilon * ratio_pow;
-
-            Vec2d r_hat = diff / r; // unit vector from j toward i
-            Vec2d F = r_hat * F_mag;
-
+            // pairForce(a,b) == -pairForce(b,a), so Newton's 3rd law holds.
+            Vec2d F = pairForce(pos_i[a], vel_i[a], pos_j[b], vel_j[b]);
             f_i[a] += F;
             f_j[b] -= F;
         }
@@ -38,35 +57,16 @@ void RepulsionForce::computeInterCapsule(Capsule& ci, Capsule& cj) {
 
 void RepulsionForce::computeWallRepulsion(Capsule& c, Real y_bottom, Real y_top) {
     auto& pos = c.positions();
+    auto& vel = c.velocities();
     auto& f = c.forces();
+    const Vec2d kStatic{0.0, 0.0};  // walls are stationary
 
-    Real r_cut = params_.r_cut;
-    Real epsilon = params_.epsilon;
-    Real sigma = params_.sigma;
-    int power = params_.power;
-
+    // Reuse pairForce with a projected surface point directly below/above the
+    // node: the normal comes out as +y (bottom) or -y (top), and damping +
+    // friction against the (static) wall follow automatically.
     for (int i = 0; i < c.numNodes(); ++i) {
-        // Bottom wall repulsion (force in +y direction)
-        {
-            Real r = pos[i].y - y_bottom;
-            if (r > 0.0 && r < r_cut) {
-                Real ratio = sigma / r;
-                Real ratio_pow = std::pow(ratio, power);
-                Real F_mag = epsilon * ratio_pow;
-                f[i].y += F_mag;
-            }
-        }
-
-        // Top wall repulsion (force in -y direction)
-        {
-            Real r = y_top - pos[i].y;
-            if (r > 0.0 && r < r_cut) {
-                Real ratio = sigma / r;
-                Real ratio_pow = std::pow(ratio, power);
-                Real F_mag = epsilon * ratio_pow;
-                f[i].y -= F_mag;
-            }
-        }
+        f[i] += pairForce(pos[i], vel[i], Vec2d{pos[i].x, y_bottom}, kStatic);
+        f[i] += pairForce(pos[i], vel[i], Vec2d{pos[i].x, y_top}, kStatic);
     }
 }
 
@@ -74,27 +74,14 @@ void RepulsionForce::computeWallRepulsion(Capsule& c, Real y_bottom, Real y_top)
 /// Thread-safe when each thread owns a unique target capsule.
 void RepulsionForce::computeOneSidedRepulsion(Capsule& target, const Capsule& source) {
     auto& pos_t = target.positions();
+    auto& vel_t = target.velocities();
     const auto& pos_s = source.positions();
+    const auto& vel_s = source.velocities();
     auto& f_t = target.forces();
-
-    Real r_cut = params_.r_cut;
-    Real epsilon = params_.epsilon;
-    Real sigma = params_.sigma;
-    int power = params_.power;
 
     for (int a = 0; a < target.numNodes(); ++a) {
         for (int b = 0; b < source.numNodes(); ++b) {
-            Vec2d diff = pos_t[a] - pos_s[b];
-            diff.x = minImageDx(diff.x);
-            Real r = diff.norm();
-            if (r < 1e-15 || r >= r_cut) continue;
-
-            Real ratio = sigma / r;
-            Real ratio_pow = std::pow(ratio, power);
-            Real F_mag = epsilon * ratio_pow;
-
-            Vec2d r_hat = diff / r;
-            f_t[a] += r_hat * F_mag; // only write to target
+            f_t[a] += pairForce(pos_t[a], vel_t[a], pos_s[b], vel_s[b]);
         }
     }
 }
@@ -138,9 +125,6 @@ void RepulsionForce::computeAllCellList(CapsuleSystem& system,
                                          Real y_bottom, Real y_top) {
     const int ncaps = system.numCapsules();
     const Real r_cut = params_.r_cut;
-    const Real epsilon = params_.epsilon;
-    const Real sigma = params_.sigma;
-    const int power = params_.power;
 
     // Build the cell list from current node positions.
     // Cell size = r_cut so any interacting pair shares the same or adjacent cells.
@@ -160,6 +144,7 @@ void RepulsionForce::computeAllCellList(CapsuleSystem& system,
     for (int i = 0; i < ncaps; ++i) {
         auto& cap_i = system[i];
         auto& pos_i = cap_i.positions();
+        auto& vel_i = cap_i.velocities();
         auto& f_i = cap_i.forces();
         const int nnodes_i = cap_i.numNodes();
 
@@ -180,18 +165,9 @@ void RepulsionForce::computeAllCellList(CapsuleSystem& system,
                     if (ref.capsule == i) continue; // skip self-capsule
 
                     const Vec2d& pos_b = system[ref.capsule].nodePosition(ref.node);
-                    Vec2d diff = pos_i[a] - pos_b;
-                    diff.x = minImageDx(diff.x);
-                    Real r = diff.norm();
-
-                    if (r < 1e-15 || r >= r_cut) continue;
-
-                    Real ratio = sigma / r;
-                    Real ratio_pow = std::pow(ratio, power);
-                    Real F_mag = epsilon * ratio_pow;
-
-                    Vec2d r_hat = diff / r;
-                    f_i[a] += r_hat * F_mag; // one-sided: only write to target
+                    const Vec2d vel_b = system[ref.capsule].nodeVelocity(ref.node);
+                    // one-sided: only write to target node a
+                    f_i[a] += pairForce(pos_i[a], vel_i[a], pos_b, vel_b);
                 }
             }
         }
@@ -202,40 +178,59 @@ void RepulsionForce::computeAllCellList(CapsuleSystem& system,
 }
 
 void RepulsionForce::computeObstacleRepulsion(CapsuleSystem& system, const Obstacle& obs) {
-    Real r_cut = params_.r_cut;
-    Real epsilon = params_.epsilon;
-    Real sigma = params_.sigma;
-    int power = params_.power;
-    int ncaps = system.numCapsules();
+    const Real r_cut = params_.r_cut;
+    const Real epsilon = params_.epsilon;
+    const Real sigma = params_.sigma;
+    const int power = params_.power;
+    const Real gamma_n = params_.damping_normal;
+    const Real mu = params_.friction_coeff;
+    const int ncaps = system.numCapsules();
 
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic)
 #endif
     for (int c = 0; c < ncaps; ++c) {
         auto& pos = system[c].positions();
+        auto& vel = system[c].velocities();
         auto& f = system[c].forces();
 
         for (int i = 0; i < system[c].numNodes(); ++i) {
             Real sd = obs.signedDistance(pos[i].x, pos[i].y);
 
-            // sd > 0: outside obstacle (normal repulsion)
-            // sd < 0: INSIDE obstacle (emergency push-out)
+            // sd > 0: outside obstacle (normal repulsion + optional friction)
+            // sd < 0: INSIDE obstacle (pure emergency push-out)
             if (sd >= r_cut) continue;  // too far away
 
             Real r = std::abs(sd);
             if (r < 1e-15) r = 1e-15;  // avoid division by zero
 
             Vec2d normal = obs.normalAt(pos[i].x, pos[i].y);
-            Real ratio = sigma / r;
-            Real ratio_pow = std::pow(ratio, power);
-            Real F_mag = epsilon * ratio_pow;
+            Real F_rep = epsilon * std::pow(sigma / r, power);
 
-            // If inside obstacle, apply stronger emergency push-out
             if (sd < 0.0) {
-                F_mag *= 10.0;
+                // Inside the obstacle: strong emergency push-out, no damping.
+                f[i] += normal * (F_rep * 10.0);
+                continue;
             }
 
-            f[i] += normal * F_mag;
+            // Outside contact: optional normal damping + Coulomb friction
+            // against the (static) obstacle surface.
+            Real F_n = F_rep;
+            Vec2d F_t{0.0, 0.0};
+            if (gamma_n > 0.0 || mu > 0.0) {
+                const Vec2d& v = vel[i];
+                Real v_n = v.x * normal.x + v.y * normal.y;
+                F_n = F_rep - gamma_n * v_n;
+                if (F_n < 0.0) F_n = 0.0;
+                if (mu > 0.0) {
+                    Vec2d v_t = v - normal * v_n;
+                    Real v_t_mag = v_t.norm();
+                    if (v_t_mag > 1e-12) {
+                        F_t = (v_t / v_t_mag) * (-mu * F_n);
+                    }
+                }
+            }
+            f[i] += normal * F_n + F_t;
         }
     }
 }

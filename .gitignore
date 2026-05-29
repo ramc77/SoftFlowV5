@@ -73,6 +73,13 @@ research/**/*.log
 # rules above; the global *.npz rule blocks history.npz / sweep_results.npz.
 # No unignore rules — keep the repo light.
 
+# Project 05 GNN data directories: per-cell trajectories (particle_data.csv,
+# global_stats.csv), VTK output and graph datasets — all bulk + regenerable
+# from the scripts. (The vtk_*/ rule above already blocks the vtk_* run dirs.)
+research/**/gnn_data/
+research/**/*particle_data.csv
+research/**/global_stats.csv
+
 # =====================================================================
 # Editor / OS junk
 # =====================================================================

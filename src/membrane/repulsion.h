@@ -38,6 +38,16 @@ private:
         return dx;
     }
 
+    /// Contact force on node a (at pos_a, vel_a) due to node/surface b (at
+    /// pos_b, vel_b): conservative power-law repulsion plus optional normal
+    /// viscoelastic damping and tangential Coulomb friction. Returns the zero
+    /// vector when the pair is outside r_cut. By construction
+    /// pairForce(a,b) == -pairForce(b,a), so it is valid in both the
+    /// Newton's-3rd-law (two-sided) and one-sided/cell-list code paths.
+    /// For a static surface (wall/obstacle) pass vel_b = {0,0}.
+    Vec2d pairForce(const Vec2d& pos_a, const Vec2d& vel_a,
+                    const Vec2d& pos_b, const Vec2d& vel_b) const;
+
     /// Cell-list accelerated inter-capsule repulsion (one-sided, thread-safe).
     /// For each membrane node of capsule i, checks only nodes in the same
     /// and neighboring cells rather than all nodes of all other capsules.

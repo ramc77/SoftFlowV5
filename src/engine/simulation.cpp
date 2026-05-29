@@ -675,6 +675,31 @@ void Simulation::step() {
         }
     }
 
+    // 10a. Periodic-x recirculation of capsules, decoupled from the fluid BC.
+    // A capsule whose centroid leaves [0, nx) is rigidly translated by +-nx so
+    // it re-enters at the opposite end (conveyor recirculation). This lets a
+    // finite suspension recirculate at sustained concentration while the fluid
+    // keeps its own BC (e.g. velocity-driven inlet/outlet). Inter-capsule and
+    // IBM forces remain non-periodic, consistent with the non-periodic fluid;
+    // the seam crossing is a one-step teleport (valid for capsules small
+    // relative to nx). When the fluid itself is PERIODIC this is redundant
+    // (the standard periodic path already wraps), so it is only needed for the
+    // periodic-capsules + non-periodic-fluid combination.
+    if (params_.fluid.capsule_periodic_x &&
+        params_.fluid.boundary_type != BoundaryType::PERIODIC) {
+        const Real Lx = static_cast<Real>(params_.nx);
+        for (int c = 0; c < capsules_.numCapsules(); ++c) {
+            const Vec2d cen = capsules_[c].centroid();
+            Real shift = 0.0;
+            if (cen.x >= Lx)      shift = -Lx;
+            else if (cen.x < 0.0) shift =  Lx;
+            if (shift != 0.0) {
+                auto& nodes = capsules_[c].positions();
+                for (auto& p : nodes) p.x += shift;
+            }
+        }
+    }
+
     // 10b. Drain registered dynamic inserters. Placed here so that
     // (a) freshly added capsules see full physics on the *next* step,
     // (b) they are visible to ML data collection and segregation

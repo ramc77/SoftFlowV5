@@ -146,6 +146,7 @@ PYBIND11_MODULE(softflow_core, m) {
         .def_readwrite("viscosity_contrast", &FluidParams::viscosity_contrast)
         .def_readwrite("viscosity_update_interval", &FluidParams::viscosity_update_interval)
         .def_readwrite("periodic_y", &FluidParams::periodic_y)
+        .def_readwrite("capsule_periodic_x", &FluidParams::capsule_periodic_x)
         .def_readwrite("top_wall_velocity", &FluidParams::top_wall_velocity)
         .def_readwrite("bottom_wall_velocity", &FluidParams::bottom_wall_velocity)
         .def_readwrite("use_interpolated_bb", &FluidParams::use_interpolated_bb)
@@ -190,7 +191,9 @@ PYBIND11_MODULE(softflow_core, m) {
         .def_readwrite("epsilon", &RepulsionParams::epsilon)
         .def_readwrite("sigma", &RepulsionParams::sigma)
         .def_readwrite("r_cut", &RepulsionParams::r_cut)
-        .def_readwrite("power", &RepulsionParams::power);
+        .def_readwrite("power", &RepulsionParams::power)
+        .def_readwrite("damping_normal", &RepulsionParams::damping_normal)
+        .def_readwrite("friction_coeff", &RepulsionParams::friction_coeff);
 
     py::class_<LubricationParams>(m, "LubricationParams")
         .def(py::init<>())

@@ -217,7 +217,8 @@ class SoftFlowSimulation:
         self._domain = {"nx": nx, "ny": ny}
         return self
 
-    def boundary(self, x: str = "inlet_outlet", y: str = "wall") -> "SoftFlowSimulation":
+    def boundary(self, x: str = "inlet_outlet", y: str = "wall",
+                 capsules: str = "follow") -> "SoftFlowSimulation":
         """Set boundary conditions.
 
         Parameters
@@ -227,15 +228,24 @@ class SoftFlowSimulation:
             or ``"closed"`` (solid walls on all 4 sides).
         y : str
             Y-direction: ``"wall"`` (default), ``"periodic"``, or ``"open"``.
+        capsules : str
+            Capsule streamwise behaviour: ``"follow"`` (default) uses the same
+            x-BC as the fluid; ``"periodic"`` recirculates capsules in x
+            *independently* of the fluid. Use ``capsules="periodic"`` with
+            ``x="inlet_outlet"`` for a finite suspension that recirculates at
+            sustained concentration while the fluid is velocity/pressure-driven.
         """
         self._require_domain("boundary")
         valid_x = ("periodic", "inlet_outlet", "closed")
         valid_y = ("wall", "periodic", "open")
+        valid_caps = ("follow", "periodic")
         if x not in valid_x:
             raise ValueError(f"x boundary must be one of {valid_x}, got {x!r}")
         if y not in valid_y:
             raise ValueError(f"y boundary must be one of {valid_y}, got {y!r}")
-        self._boundary = {"x": x, "y": y}
+        if capsules not in valid_caps:
+            raise ValueError(f"capsules must be one of {valid_caps}, got {capsules!r}")
+        self._boundary = {"x": x, "y": y, "capsules": capsules}
         return self
 
     def obstacle(self, shape: str, **kwargs) -> "SoftFlowSimulation":
@@ -676,10 +686,17 @@ class SoftFlowSimulation:
             Interaction pair: ``"particle-particle"``,
             ``"particle-wall"``, ``"particle-obstacle"``.
         style : str
-            Interaction style: ``"morse"`` (Morse-like repulsion).
+            ``"morse"`` — conservative power-law repulsion only (legacy).
+            ``"dem"`` — DEM-style contact: the same repulsion *plus* optional
+            normal viscoelastic damping (restitution < 1) and tangential
+            Coulomb friction. Both styles share the repulsion parameters; the
+            DEM terms are off unless ``damping_normal`` / ``friction_coeff`` > 0.
         **kwargs
-            Style-specific parameters:
-            For ``"morse"``: ``epsilon``, ``sigma``, ``r_cut``, ``power``.
+            Repulsion: ``epsilon``, ``sigma``, ``r_cut``, ``power``.
+            DEM contact: ``damping_normal`` (normal dashpot coefficient,
+            gives restitution < 1) and ``friction_coeff`` (Coulomb mu;
+            tangential force capped at mu*|F_normal|). Applied to inter-capsule,
+            wall, and obstacle contacts.
         """
         valid_pairs = ("particle-particle", "particle-wall", "particle-obstacle")
         if pair not in valid_pairs:
@@ -1106,6 +1123,8 @@ class SoftFlowSimulation:
         velocity: Tuple[float, float] = (0.0, 0.0),
         seed: int = 12345,
         min_gap: float = 1.0,
+        packing: str = "hex",
+        jitter: float = 0.0,
     ) -> "SoftFlowSimulation":
         """Generate particles in a named region.
 
@@ -1123,13 +1142,26 @@ class SoftFlowSimulation:
             Number of membrane nodes per capsule.  If ``None`` (default),
             automatically computed so that node spacing ds ~ 0.75 dx.
         method : str
-            ``"random"`` — random placement with overlap rejection (default).
-            ``"hexagonal"`` — hexagonal close-packing with optional jitter
-            (best for dense suspensions, guarantees no overlap).
-            ``"lattice"`` — regular grid placement.
+            ``"fill"`` (a.k.a. ``"dense"``) — **recommended for dense
+            suspensions.** Deterministic close-packing onto a grid whose
+            spacing guarantees the minimum gap by construction, so it packs to
+            the region's geometric capacity with no stochastic rejection. Use
+            ``packing`` to pick ``"hex"`` (default) or ``"square"``.
+            ``"random"`` — random placement with overlap rejection. Fine for
+            dilute fills; severely under-fills dense regions.
+            ``"hexagonal"`` — hex grid with jitter + overlap rejection (the
+            jitter can reject many near-threshold sites; prefer ``"fill"``).
+            ``"lattice"`` — simple regular grid placement.
         spacing : float, optional
-            Grid spacing for ``"lattice"`` or ``"hexagonal"`` method.
-            For hexagonal, defaults to ``2 * r_max + min_gap``.
+            Grid spacing (centre-to-centre) for ``"fill"``, ``"lattice"`` or
+            ``"hexagonal"``. Defaults to ``2 * r_max + min_gap``.
+        packing : str
+            For ``method="fill"``: ``"hex"`` (default, denser) or ``"square"``.
+        jitter : float
+            For ``method="fill"``: per-capsule random displacement (LU). The
+            grid spacing is enlarged by ``2*jitter`` so packing stays dense and
+            non-overlapping, while different ``seed`` values give DISTINCT
+            configurations (the base fill grid is otherwise deterministic).
         velocity : (vx, vy)
             Initial velocity of generated particles.
         seed : int
@@ -1165,6 +1197,8 @@ class SoftFlowSimulation:
             "velocity": velocity,
             "seed": seed,
             "min_gap": min_gap,
+            "packing": packing,
+            "jitter": jitter,
         })
         return self
 
@@ -2516,6 +2550,11 @@ class SoftFlowSimulation:
         if self._boundary["y"] == "periodic":
             fp.periodic_y = True
 
+        # Independent capsule recirculation in x (periodic capsules while the
+        # fluid uses a non-periodic, e.g. inlet/outlet, BC).
+        if self._boundary.get("capsules") == "periodic":
+            fp.capsule_periodic_x = True
+
         # Moving walls
         if self._moving_wall_config:
             fp.top_wall_velocity = self._moving_wall_config.get("top_velocity", 0.0)
@@ -2544,11 +2583,14 @@ class SoftFlowSimulation:
         for pair_name in ("particle-particle", "particle-wall", "particle-obstacle"):
             if pair_name in self._interactions:
                 inter = self._interactions[pair_name]
-                if inter["style"] == "morse":
+                if inter["style"] in ("morse", "dem"):
                     rp.epsilon = inter.get("epsilon", rp.epsilon)
                     rp.sigma = inter.get("sigma", rp.sigma)
                     rp.r_cut = inter.get("r_cut", rp.r_cut)
                     rp.power = inter.get("power", rp.power)
+                    # DEM-style dissipative/frictional contact (Path A).
+                    rp.damping_normal = inter.get("damping_normal", rp.damping_normal)
+                    rp.friction_coeff = inter.get("friction_coeff", rp.friction_coeff)
         p.repulsion = rp
 
         # Lubrication
@@ -2731,6 +2773,10 @@ class SoftFlowSimulation:
                     self._generate_hexagonal(spec, mp, tid, x0, y0, x1, y1)
                 elif spec["method"] == "lattice":
                     self._generate_lattice(spec, mp, tid, x0, y0, x1, y1)
+                elif spec["method"] in ("fill", "dense"):
+                    self._generate_fill(spec, mp, tid, x0, y0, x1, y1)
+                elif spec["method"] == "pour":
+                    self._generate_pour(spec, mp, tid, x0, y0, x1, y1)
                 else:
                     raise ValueError(f"Unknown generation method: {spec['method']!r}")
 
@@ -2939,6 +2985,137 @@ class SoftFlowSimulation:
 
         print(f"Placed {placed}/{count} capsules "
               f"(hexagonal, {len(candidates)} sites available)")
+
+    def _generate_fill(self, spec, mp, tid, x0, y0, x1, y1):
+        """Deterministically fill a region with a dense, non-overlapping packing.
+
+        This is the robust dense-packing method. Unlike ``random`` and
+        ``hexagonal`` — which place candidates and then *reject* on overlap
+        (the stochastic rejection, compounded by jitter, severely under-fills
+        dense regions) — ``fill`` lays capsules on a regular grid whose spacing
+        ``s = 2*rmax + min_gap`` guarantees the minimum surface gap *by
+        construction*. No overlap test is needed, so the region packs to its
+        geometric capacity every time.
+
+        Packing (``spec["packing"]``):
+          ``"hex"`` (default) — hexagonal close packing (rows offset by s/2,
+              row pitch s*sqrt(3)/2); ~15 % denser than square.
+          ``"square"`` — square lattice (row pitch s).
+
+        Placement order is row-major (bottom-up), i.e. the region fills "part by
+        part" from the inlet wall outward. If ``count`` exceeds the region
+        capacity, the region is filled and a warning is logged; if ``count`` is
+        smaller, the first ``count`` grid sites are used.
+
+        Centres are kept at least ``rmax`` from the region edges so the membrane
+        stays inside the region. For polydisperse radii the placed radius is
+        ``rmin`` while the spacing uses ``rmax`` (conservative — never overlaps).
+        """
+        import logging
+        import random as _rnd
+
+        count = spec["count"]
+        rmin = spec["rmin"]
+        rmax = spec["rmax"]
+        min_gap = spec.get("min_gap", 1.0)
+        packing = spec.get("packing", "hex")
+        # Optional seed-dependent jitter: displaces each capsule by up to
+        # +-jitter (uniform) so different seeds give DISTINCT dense packings
+        # (the base grid is otherwise deterministic). The base spacing already
+        # carries ``min_gap`` of surface slack, so a jitter up to ``min_gap/2``
+        # is absorbed by that slack and stays non-overlapping WITHOUT enlarging
+        # the grid -- crucial, because enlarging the spacing would lower the
+        # packing density and destroy the very contacts the clog study needs.
+        jitter = min(float(spec.get("jitter", 0.0)), 0.5 * min_gap)
+        spacing = spec.get("spacing") or (2.0 * rmax + min_gap)
+        row_pitch = spacing * (math.sqrt(3.0) / 2.0) if packing == "hex" else spacing
+        margin = rmax  # base grid; a +-jitter nudge past the seeding bound is harmless
+        rng = _rnd.Random(spec.get("seed", 12345))
+
+        # Build the full grid of valid centres (capacity), row-major.
+        sites: list[tuple[float, float]] = []
+        iy = 0
+        cy = y0 + margin
+        while cy <= y1 - margin + 1e-9:
+            offset = (spacing / 2.0) if (packing == "hex" and iy % 2 == 1) else 0.0
+            cx = x0 + margin + offset
+            while cx <= x1 - margin + 1e-9:
+                sites.append((cx, cy))
+                cx += spacing
+            cy += row_pitch
+            iy += 1
+
+        capacity = len(sites)
+        n_place = min(count, capacity)
+        for cx, cy in sites[:n_place]:
+            if jitter > 0.0:
+                cx += rng.uniform(-jitter, jitter)
+                cy += rng.uniform(-jitter, jitter)
+            self._core.addCapsule(_sc.Vec2d(cx, cy), rmin, spec["num_nodes"], mp, tid)
+
+        if count > capacity:
+            logging.getLogger("pysoftflow").warning(
+                "fill: region capacity is %d capsules (%s packing, spacing=%.2f, "
+                "jitter=%.2f); requested %d — placed %d (region saturated).",
+                capacity, packing, spacing, jitter, count, n_place,
+            )
+        print(f"Placed {n_place}/{count} capsules "
+              f"(fill/{packing}, jitter={jitter:.2f}, capacity {capacity})")
+
+    def _generate_pour(self, spec, mp, tid, x0, y0, x1, y1):
+        """Stack ALL requested capsules in a dense column for a gravity pour.
+
+        Unlike ``fill`` (which caps at the region's single-layer capacity),
+        ``pour`` uses the region only as the column *footprint* (its x-extent
+        and floor ``y0``) and stacks hex-packed rows **upward as tall as needed**
+        to hold all ``count`` capsules. Combined with ``sim.gravity(0, -g)`` the
+        column then settles/flows downward — the hopper/silo "pour" used for
+        granular-style filling and jamming studies.
+
+        This guarantees every requested capsule is placed (the column simply
+        grows taller), whereas ``fill`` saturates at the region area. If the
+        column would rise above the domain top, only the rows that fit are
+        placed and a warning is logged.
+        """
+        import logging
+
+        count = spec["count"]
+        rmin = spec["rmin"]
+        rmax = spec["rmax"]
+        min_gap = spec.get("min_gap", 1.0)
+        spacing = spec.get("spacing") or (2.0 * rmax + min_gap)
+        row_pitch = spacing * (math.sqrt(3.0) / 2.0)
+        margin = rmax
+        ny_domain = self._domain["ny"] if self._domain else y1
+
+        # Number of columns that fit across the footprint width.
+        usable_w = (x1 - x0) - 2.0 * margin
+        n_cols = max(1, int(usable_w // spacing) + 1)
+
+        placed = 0
+        iy = 0
+        cy = y0 + margin
+        y_ceiling = ny_domain - margin
+        while placed < count and cy <= y_ceiling + 1e-9:
+            offset = (spacing / 2.0) if (iy % 2 == 1) else 0.0
+            for ix in range(n_cols):
+                if placed >= count:
+                    break
+                cx = x0 + margin + offset + ix * spacing
+                if cx > x1 - margin + 1e-9:
+                    break
+                self._core.addCapsule(_sc.Vec2d(cx, cy), rmin, spec["num_nodes"], mp, tid)
+                placed += 1
+            cy += row_pitch
+            iy += 1
+
+        if placed < count:
+            logging.getLogger("pysoftflow").warning(
+                "pour: column reached the domain top after %d of %d capsules "
+                "(widen the footprint or raise the domain).", placed, count,
+            )
+        print(f"Placed {placed}/{count} capsules "
+              f"(pour, {n_cols}-wide column, {iy} rows)")
 
     # ══════════════════════════════════════════════════════════
     # Internal: thermo output
